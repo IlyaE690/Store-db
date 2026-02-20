@@ -1,0 +1,35 @@
+services:
+  
+  postgres:
+    image: postgres:17
+    container_name: db-homeworks-s2
+    restart: always
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"
+
+  flyway:
+    image: flyway/flyway
+    command: 
+      - "migrate"
+      - "-baselineOnMigrate=true"
+      - "-validateMigrationNaming=true"
+    volumes:
+      - ./db/migrations:/flyway/sql
+    depends_on:
+      - postgres
+    environment:
+      FLYWAY_URL: ${FLYWAY_URL}
+      FLYWAY_USER: ${FLYWAY_USER}
+      FLYWAY_PASSWORD: ${FLYWAY_PASSWORD}
+      FLYWAY_BASELINE_VERSION: 1
+      FLYWAY_BASELINE_DESCRIPTION: "Initial baseline"
+      FLYWAY_SCHEMAS: public
+
+volumes:
+  pg_data:
