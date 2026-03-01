@@ -1,23 +1,23 @@
 WITH 
 first_names AS (
-    SELECT unnest(ARRAY[
+    SELECT ARRAY[
         'Александр', 'Дмитрий', 'Максим', 'Сергей', 'Андрей', 'Алексей', 'Иван', 'Евгений',
         'Михаил', 'Артем', 'Владимир', 'Роман', 'Николай', 'Денис', 'Павел', 'Кирилл'
-    ]) as name
+    ] as name
 ),
 last_names AS (
-    SELECT unnest(ARRAY[
+    SELECT ARRAY[
         'Иванов', 'Петров', 'Сидоров', 'Смирнов', 'Кузнецов', 'Попов', 'Васильев',
         'Михайлов', 'Федоров', 'Морозов', 'Волков', 'Алексеев', 'Лебедев', 'Семенов',
         'Егоров', 'Павлов', 'Козлов', 'Степанов', 'Николаев', 'Орлов'
-    ]) as name
+    ] as name
 ),
 patronymics AS (
-    SELECT unnest(ARRAY[
+    SELECT ARRAY[
         'Александрович', 'Дмитриевич', 'Максимович', 'Сергеевич', 'Андреевич',
         'Алексеевич', 'Иванович', 'Евгеньевич', 'Михайлович', 'Артемович',
         'Владимирович', 'Романович', 'Николаевич', 'Денисович', 'Павлович'
-    ]) as name
+    ] as name
 )
 INSERT INTO customer (
     id,
@@ -32,20 +32,20 @@ INSERT INTO customer (
 SELECT
     gs,
     -- низкая кардинальность
-    (SELECT name FROM last_names ORDER BY random() LIMIT 1),
+    (SELECT name FROM last_names)[ceil(random() * 20)::int],
     
     
-    (SELECT name FROM first_names ORDER BY random() LIMIT 1),
+    (SELECT name FROM first_names)[ceil(random() * 16)::int],
     
     -- 20% NULL
     CASE WHEN random() < 0.2 THEN NULL
-         ELSE (SELECT name FROM patronymics ORDER BY random() LIMIT 1)
+         ELSE ((SELECT name FROM patronymics)[ceil(random() * 15)::int])
     END,
     
     -- высокая кардинальность, но с паттерном
     lower(
-        (SELECT name FROM first_names ORDER BY random() LIMIT 1) || '.' ||
-        (SELECT name FROM last_names ORDER BY random() LIMIT 1) || 
+        ((SELECT name FROM first_names)[ceil(random() * 16)::int]) || '.' ||
+        ((SELECT name FROM last_names)[ceil(random() * 20)::int]) ||
         CASE (random()*3)::int
             WHEN 0 THEN '@gmail.com'
             WHEN 1 THEN '@yandex.ru'
@@ -130,18 +130,17 @@ INSERT INTO product_catalog (
 )
 SELECT
     gs,
-    CASE (random()*10)::int
-        WHEN 0 THEN 'Смартфон '
-        WHEN 1 THEN 'Ноутбук '
-        WHEN 2 THEN 'Футболка '
-        WHEN 3 THEN 'Джинсы '
-        WHEN 4 THEN 'Книга '
-        WHEN 5 THEN 'Наушники '
-        WHEN 6 THEN 'Кружка '
-        WHEN 7 THEN 'Мяч '
-        WHEN 8 THEN 'Часы '
-        ELSE 'Товар '
-    END || gs || ' ' || 
+    CASE (random()*9)::int
+        WHEN 0 THEN 'Смартфон'
+        WHEN 1 THEN 'Ноутбук'
+        WHEN 2 THEN 'Футболка'
+        WHEN 3 THEN 'Джинсы'
+        WHEN 4 THEN 'Книга'
+        WHEN 5 THEN 'Наушники'
+        WHEN 6 THEN 'Кружка'
+        WHEN 7 THEN 'Мяч'
+        ELSE 'Часы'
+    END || ' ' ||
     CASE (random()*5)::int
         WHEN 0 THEN 'Pro'
         WHEN 1 THEN 'Lite'
