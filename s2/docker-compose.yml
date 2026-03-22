@@ -1,17 +1,59 @@
 services:
-  
   postgres:
     image: postgres:17
-    container_name: db-homeworks-s2
+    container_name: pg-master
     restart: always
     environment:
       - POSTGRES_DB=${DB_NAME}
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_data_master:/var/lib/postgresql/data
     ports:
       - "15432:5432"
+
+  postgres-replica1:
+    image: postgres:17
+    container_name: pg-replica1
+    restart: always
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - pg_data_replica1:/var/lib/postgresql/data
+    ports:
+      - "15433:5432"
+    depends_on:
+      - postgres
+
+  postgres-replica2:
+    image: postgres:17
+    container_name: pg-replica2
+    restart: always
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - pg_data_replica2:/var/lib/postgresql/data
+    ports:
+      - "15434:5432"
+    depends_on:
+      - postgres
+
+  pg-logical:
+    image: postgres:17
+    container_name: pg-logical
+    restart: always
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - pg_data_logical:/var/lib/postgresql/data
+    ports:
+      - "15435:5432"
 
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter
@@ -47,7 +89,7 @@ services:
 
   flyway:
     image: flyway/flyway
-    command: 
+    command:
       - "migrate"
       - "-baselineOnMigrate=true"
       - "-validateMigrationNaming=true"
@@ -63,7 +105,8 @@ services:
       FLYWAY_BASELINE_DESCRIPTION: "Initial baseline"
       FLYWAY_SCHEMAS: public
 
-
-
 volumes:
-  pg_data:
+  pg_data_master:
+  pg_data_replica1:
+  pg_data_replica2:
+  pg_data_logical:
