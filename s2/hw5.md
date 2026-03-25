@@ -1,3 +1,6 @@
+**Архитектура**
+
+![img.png](images/hw5/photo.png)
 
 ***Развернуть 3 PostgreSQL instance, 
 Настроить physical streaming replication***
