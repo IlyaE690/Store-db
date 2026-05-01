@@ -1,0 +1,195 @@
+{
+  "info": {
+    "_postman_id": "868851b3-c457-4967-a3e1-9167bbd793ba",
+    "name": "Elastic Search",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "33125468"
+  },
+  "item": [
+    {
+      "name": "Создание индекса",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"mappings\": {\n        \"properties\": {\n            \"title\": {\n                \"type\": \"text\",\n                \"analyzer\": \"russian\"\n            },\n            \"price\": {\n                \"type\": \"float\"\n            },\n            \"available\": {\n                \"type\": \"boolean\"\n            }\n        }\n    }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:9200/first_index",
+          "host": [
+            "localhost"
+          ],
+          "port": "9200",
+          "path": [
+            "first_index"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Добавление документа",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"title\": \"Беспроводные наушники\",\n    \"price\": 59.99,\n    \"available\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:9200/first_index/_doc/1",
+          "host": [
+            "localhost"
+          ],
+          "port": "9200",
+          "path": [
+            "first_index",
+            "_doc",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Создание документа",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"title\": \"Кабель USB\",\n    \"price\": 12.99,\n    \"available\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:9200/first_index/_doc/2/_create",
+          "host": [
+            "localhost"
+          ],
+          "port": "9200",
+          "path": [
+            "first_index",
+            "_doc",
+            "2",
+            "_create"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Получение документа",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "localhost:9200/first_index/_doc/3",
+          "host": [
+            "localhost"
+          ],
+          "port": "9200",
+          "path": [
+            "first_index",
+            "_doc",
+            "3"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Поиск",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"query\": {\n        \"bool\": {\n            \"must\": [\n                {\n                    \"range\": {\n                        \"price\": {\n                            \"gte\": 15,\n                            \"lte\": 50\n                        }\n                    }\n                },\n                {\n                    \"term\": {\n                        \"available\": true\n                    }\n                }\n            ]\n        }\n    }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:9200/first_index/_search",
+          "host": [
+            "localhost"
+          ],
+          "port": "9200",
+          "path": [
+            "first_index",
+            "_search"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Bulk insert",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"index\": {\"_index\": \"first_index\", \"_id\": 2}}\n{\"title\": \"Активный стилус\", \"price\": 272.87, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 3}}\n{\"title\": \"Кулер для процессора\", \"price\": 200.14, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 4}}\n{\"title\": \"Селфи-палка\", \"price\": 61.6, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 5}}\n{\"title\": \"Внешний аккумулятор\", \"price\": 198.49, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 6}}\n{\"title\": \"Смарт-часы\", \"price\": 181.26, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 7}}\n{\"title\": \"Мышь беспроводная\", \"price\": 94.08, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 8}}\n{\"title\": \"Внешний диск 2TB\", \"price\": 177.49, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 9}}\n{\"title\": \"Процессор\", \"price\": 125.64, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 10}}\n{\"title\": \"Видеокарта\", \"price\": 238.9, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 11}}\n{\"title\": \"Оптический привод\", \"price\": 139.59, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 12}}\n{\"title\": \"ТВ-тюнер\", \"price\": 12.25, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 13}}\n{\"title\": \"Геймпад\", \"price\": 22.71, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 14}}\n{\"title\": \"Флешка 128GB\", \"price\": 209.79, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 15}}\n{\"title\": \"Игровая клавиатура\", \"price\": 231.37, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 16}}\n{\"title\": \"Процессор\", \"price\": 173.85, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 17}}\n{\"title\": \"Видеокарта\", \"price\": 238.9, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 18}}\n{\"title\": \"Оптический привод\", \"price\": 139.59, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 19}}\n{\"title\": \"ТВ-тюнер\", \"price\": 12.25, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 20}}\n{\"title\": \"Геймпад\", \"price\": 22.71, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 21}}\n{\"title\": \"Внешний диск 2TB\", \"price\": 94.84, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 22}}\n{\"title\": \"Модуль Wi-Fi\", \"price\": 12.14, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 23}}\n{\"title\": \"Термометр\", \"price\": 37.64, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 24}}\n{\"title\": \"Bluetooth колонка\", \"price\": 96.2, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 25}}\n{\"title\": \"Микрофон для смартфона\", \"price\": 105.72, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 26}}\n{\"title\": \"Защитный чехол\", \"price\": 138.28, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 27}}\n{\"title\": \"Роутер\", \"price\": 68.73, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 28}}\n{\"title\": \"Подставка для ноутбука\", \"price\": 152.74, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 29}}\n{\"title\": \"Магнитный держатель\", \"price\": 176.88, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 30}}\n{\"title\": \"Электронная книга\", \"price\": 239.82, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 31}}\n{\"title\": \"Принтер\", \"price\": 164.19, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 32}}\n{\"title\": \"Зарядное устройство\", \"price\": 178.07, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 33}}\n{\"title\": \"Фитнес-браслет\", \"price\": 95.07, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 34}}\n{\"title\": \"Гарнитура\", \"price\": 23.4, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 35}}\n{\"title\": \"Переходник\", \"price\": 144.72, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 36}}\n{\"title\": \"Чехол для планшета\", \"price\": 233.45, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 37}}\n{\"title\": \"HDMI сплиттер\", \"price\": 159.38, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 38}}\n{\"title\": \"Жесткий диск 1TB\", \"price\": 132.51, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 39}}\n{\"title\": \"Наушники\", \"price\": 98.16, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 40}}\n{\"title\": \"Радар-детектор\", \"price\": 239.18, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 41}}\n{\"title\": \"Игровая консоль\", \"price\": 19.57, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 42}}\n{\"title\": \"Зарядное устройство для автомобиля\", \"price\": 19.82, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 43}}\n{\"title\": \"Внешний аккумулятор\", \"price\": 147.7, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 44}}\n{\"title\": \"Шлем VR\", \"price\": 253.28, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 45}}\n{\"title\": \"Флешка 32GB\", \"price\": 70.02, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 46}}\n{\"title\": \"Смарт-часы\", \"price\": 160.36, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 47}}\n{\"title\": \"Док-станция\", \"price\": 176.93, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 48}}\n{\"title\": \"Смартфон\", \"price\": 154.58, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 49}}\n{\"title\": \"Кабель Type-C\", \"price\": 184.74, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 50}}\n{\"title\": \"Геймпад для смартфона\", \"price\": 61.68, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 51}}\n{\"title\": \"Карман для жесткого диска\", \"price\": 93.49, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 52}}\n{\"title\": \"Зарядная станция\", \"price\": 186.42, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 53}}\n{\"title\": \"Модем\", \"price\": 136.56, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 54}}\n{\"title\": \"Пульсоксиметр\", \"price\": 215.58, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 55}}\n{\"title\": \"Материнская плата\", \"price\": 230.28, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 56}}\n{\"title\": \"Защитное стекло\", \"price\": 287.33, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 57}}\n{\"title\": \"Активный стилус\", \"price\": 209.62, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 58}}\n{\"title\": \"ТВ-приставка\", \"price\": 6.5, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 59}}\n{\"title\": \"Сканер\", \"price\": 78.74, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 60}}\n{\"title\": \"Проектор\", \"price\": 172.99, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 61}}\n{\"title\": \"Мобильный роутер\", \"price\": 192.7, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 62}}\n{\"title\": \"Оперативная память 16GB\", \"price\": 238.93, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 63}}\n{\"title\": \"Блок питания\", \"price\": 137.12, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 64}}\n{\"title\": \"Адаптер питания\", \"price\": 99.34, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 65}}\n{\"title\": \"Трекер\", \"price\": 190.11, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 66}}\n{\"title\": \"Микрофон\", \"price\": 81.18, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 67}}\n{\"title\": \"Оптический привод\", \"price\": 147.17, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 68}}\n{\"title\": \"Bluetooth адаптер\", \"price\": 276.64, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 69}}\n{\"title\": \"Сканер\", \"price\": 80.97, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 70}}\n{\"title\": \"Подставка для телефона\", \"price\": 267.41, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 71}}\n{\"title\": \"Автомобильная камера\", \"price\": 233.2, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 72}}\n{\"title\": \"Док-станция\", \"price\": 161.82, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 73}}\n{\"title\": \"Bluetooth колонка\", \"price\": 99.42, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 74}}\n{\"title\": \"Радар-детектор\", \"price\": 139.38, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 75}}\n{\"title\": \"Жесткий диск 1TB\", \"price\": 286.44, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 76}}\n{\"title\": \"Блок питания\", \"price\": 11.07, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 77}}\n{\"title\": \"Переходник\", \"price\": 152.63, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 78}}\n{\"title\": \"Умные весы\", \"price\": 267.02, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 79}}\n{\"title\": \"Монитор 24'\", \"price\": 105.82, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 80}}\n{\"title\": \"Гарнитура\", \"price\": 269.56, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 81}}\n{\"title\": \"Тонометр\", \"price\": 120.73, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 82}}\n{\"title\": \"Роутер\", \"price\": 47.7, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 83}}\n{\"title\": \"ТВ-приставка\", \"price\": 212.85, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 84}}\n{\"title\": \"Мультимедийная система\", \"price\": 208.71, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 85}}\n{\"title\": \"Чехол для смартфона\", \"price\": 90.23, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 86}}\n{\"title\": \"Веб-камера HD\", \"price\": 96.69, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 87}}\n{\"title\": \"Твердотельный накопитель\", \"price\": 198.23, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 88}}\n{\"title\": \"Графический планшет\", \"price\": 237.58, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 89}}\n{\"title\": \"Коврик для мыши\", \"price\": 8.37, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 90}}\n{\"title\": \"HDMI сплиттер\", \"price\": 115.91, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 91}}\n{\"title\": \"Внешний аккумулятор\", \"price\": 45.71, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 92}}\n{\"title\": \"Переходник\", \"price\": 10.46, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 93}}\n{\"title\": \"Коврик для мыши\", \"price\": 220.21, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 94}}\n{\"title\": \"Док-станция\", \"price\": 254.61, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 95}}\n{\"title\": \"Игровая клавиатура\", \"price\": 196.91, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 96}}\n{\"title\": \"Магнитный держатель\", \"price\": 125.57, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 97}}\n{\"title\": \"Зарядка для камеры\", \"price\": 57.95, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 98}}\n{\"title\": \"USB-хаб\", \"price\": 259.53, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 99}}\n{\"title\": \"Кулер для процессора\", \"price\": 260.08, \"available\": true}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 100}}\n{\"title\": \"Эндоскоп\", \"price\": 103.62, \"available\": false}\n{\"index\": {\"_index\": \"first_index\", \"_id\": 101}}\n{\"title\": \"Зарядная станция\", \"price\": 273.31, \"available\": true}\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:9200/first_index/_bulk",
+          "host": [
+            "localhost"
+          ],
+          "port": "9200",
+          "path": [
+            "first_index",
+            "_bulk"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Удаление докумнета",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "localhost:9200/first_index/_doc/2",
+          "host": [
+            "localhost"
+          ],
+          "port": "9200",
+          "path": [
+            "first_index",
+            "_doc",
+            "2"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
