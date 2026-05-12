@@ -108,7 +108,7 @@ public void generateTask() {
 
 ```java 
 @Transactional
-public WarehouseTask grabTask(String workerId) {
+public WarehouseTask takeTask(String workerId) {
     Optional<WarehouseTask> opt = repository.findReadyTaskForUpdate();
     if (opt.isPresent()) {
         WarehouseTask task = opt.get();
