@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: warehouse-queue
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:warehouse_db}
+    username: ${DB_USER:warehouse_admin}
+    password: ${DB_PASSWORD:warehouse_pass}
+  sql:
+    init:
+      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+warehouse:
+  worker-id: ${WORKER_ID:1}
+
+server:
+  port: ${SERVER_PORT:8080}

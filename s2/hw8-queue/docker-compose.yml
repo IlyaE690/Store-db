@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: warehouse-db
+    environment:
+      POSTGRES_DB: warehouse_db
+      POSTGRES_USER: warehouse_admin
+      POSTGRES_PASSWORD: warehouse_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warehouse_admin -d warehouse_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  producer:
+    build: .
+    container_name: warehouse-producer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: warehouse_db
+      DB_USER: warehouse_admin
+      DB_PASSWORD: warehouse_pass
+      SPRING_PROFILES_ACTIVE: producer
+      SERVER_PORT: "8081"
+    restart: unless-stopped
+
+  worker-1:
+    build: .
+    container_name: warehouse-worker-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: warehouse_db
+      DB_USER: warehouse_admin
+      DB_PASSWORD: warehouse_pass
+      SPRING_PROFILES_ACTIVE: consumer
+      WORKER_ID: "1"
+      SERVER_PORT: "8082"
+    restart: unless-stopped
+
+  worker-2:
+    build: .
+    container_name: warehouse-worker-2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: warehouse_db
+      DB_USER: warehouse_admin
+      DB_PASSWORD: warehouse_pass
+      SPRING_PROFILES_ACTIVE: consumer
+      WORKER_ID: "2"
+      SERVER_PORT: "8083"
+    restart: unless-stopped
+
+  monitor:
+    build: .
+    container_name: warehouse-monitor
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: warehouse_db
+      DB_USER: warehouse_admin
+      DB_PASSWORD: warehouse_pass
+      SPRING_PROFILES_ACTIVE: monitor
