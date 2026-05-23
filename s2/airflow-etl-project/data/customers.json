@@ -1,0 +1,8 @@
+[
+  {"customer_id":"C001","name":"Иван Петров","email":"ivan@email.com","city":"Москва","loyalty_status":"Gold"},
+  {"customer_id":"C002","name":"Мария Иванова","email":"maria@email.com","city":"СПб","loyalty_status":"Silver"},
+  {"customer_id":"C003","name":"Алексей Смирнов","email":"alex@email.com","city":"Москва","loyalty_status":"Platinum"},
+  {"customer_id":"C004","name":"Ольга Козлова","email":"olga@email.com","city":"Казань","loyalty_status":"Standard"},
+  {"customer_id":"C005","name":"Дмитрий Волков","email":"dmitry@email.com","city":"Екб","loyalty_status":"Silver"},
+  {"customer_id":"C006","name":"Елена Соколова","email":"elena@email.com","city":"Москва","loyalty_status":"Standard"}
+]
