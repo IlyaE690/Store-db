@@ -1,9 +1,9 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.dummy import DummyOperator
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from datetime import datetime, timedelta
 import pandas as pd
-import json
 from clickhouse_driver import Client
 
 default_args = {
@@ -18,20 +18,49 @@ default_args = {
 dag2 = DAG(
     'analytics_build_mart',
     default_args=default_args,
-    description='Build analytics data marts in ClickHouse',
+    description='Build analytics data marts in ClickHouse from PostgreSQL',
     schedule_interval='0 2 * * *',
     catchup=False,
     tags=['analytics', 'clickhouse'],
 )
 
 def check_data_availability(**context):
-    print("Checking data availability in PostgreSQL...")
-    has_data = True
+    """Проверяем наличие данных в PostgreSQL"""
+    pg_hook = PostgresHook(postgres_conn_id='postgres_default')
 
-    if has_data:
+    result = pg_hook.get_first("SELECT COUNT(*) FROM sales_merged;")
+    row_count = result[0] if result else 0
+
+    print(f"Found {row_count} rows in PostgreSQL table 'sales_merged'")
+
+    if row_count > 0:
+        context['task_instance'].xcom_push(key='row_count', value=row_count)
         return 'create_marts'
     else:
         return 'skip_analytics'
+
+def extract_from_postgres(**context):
+    """Извлекаем данные из PostgreSQL"""
+    pg_hook = PostgresHook(postgres_conn_id='postgres_default')
+
+    df = pg_hook.get_pandas_df("""
+        SELECT
+            sale_id, date, customer_id, product_id,
+            quantity, unit_price, total_amount, payment_method,
+            name, city, loyalty_status, month, year
+        FROM sales_merged
+        ORDER BY date;
+    """)
+
+    print(f"Extracted {len(df)} rows from PostgreSQL")
+    print(f"Date range: {df['date'].min()} to {df['date'].max()}")
+
+    context['task_instance'].xcom_push(
+        key='postgres_data',
+        value=df.to_json(orient='records')
+    )
+
+    return f"Extracted {len(df)} rows from PostgreSQL"
 
 def create_clickhouse_tables(**context):
     client = Client(
@@ -51,8 +80,9 @@ def create_clickhouse_tables(**context):
             total_revenue Float64,
             orders_count UInt32,
             avg_order_value Float64,
-            last_order_date Date
-        ) ENGINE = MergeTree()
+            last_order_date Date,
+            updated_at DateTime DEFAULT now()
+        ) ENGINE = ReplacingMergeTree(updated_at)
         ORDER BY customer_id
     """)
 
@@ -62,8 +92,9 @@ def create_clickhouse_tables(**context):
             total_revenue Float64,
             total_quantity UInt32,
             orders_count UInt32,
-            avg_price Float64
-        ) ENGINE = MergeTree()
+            avg_price Float64,
+            updated_at DateTime DEFAULT now()
+        ) ENGINE = ReplacingMergeTree(updated_at)
         ORDER BY product_id
     """)
 
@@ -73,8 +104,9 @@ def create_clickhouse_tables(**context):
             revenue Float64,
             orders_count UInt32,
             unique_customers UInt32,
-            avg_order_value Float64
-        ) ENGINE = MergeTree()
+            avg_order_value Float64,
+            updated_at DateTime DEFAULT now()
+        ) ENGINE = ReplacingMergeTree(updated_at)
         ORDER BY date
     """)
 
@@ -90,7 +122,12 @@ def create_clickhouse_tables(**context):
     print("ClickHouse tables created successfully")
     return "Tables created"
 
-def load_sales_by_customer(**context):
+def build_sales_by_customer(**context):
+    """Строим витрину продаж по клиентам"""
+    ti = context['task_instance']
+    data_json = ti.xcom_pull(key='postgres_data', task_ids='extract_from_postgres')
+    df = pd.read_json(data_json)
+
     client = Client(
         host='clickhouse',
         port=9000,
@@ -99,22 +136,37 @@ def load_sales_by_customer(**context):
         database='analytics'
     )
 
-    client.execute("""
-        INSERT INTO sales_by_customer VALUES
-        ('C001', 'Иван Петров', 'Москва', 'Gold', 579.92, 3, 193.31, '2024-01-19'),
-        ('C002', 'Мария Иванова', 'СПб', 'Silver', 449.96, 3, 149.99, '2024-01-20'),
-        ('C003', 'Алексей Смирнов', 'Москва', 'Platinum', 589.92, 4, 147.48, '2024-01-24'),
-        ('C004', 'Ольга Козлова', 'Казань', 'Standard', 449.93, 3, 149.98, '2024-01-23'),
-        ('C005', 'Дмитрий Волков', 'Екб', 'Silver', 249.97, 2, 124.99, '2024-01-24'),
-        ('C006', 'Елена Соколова', 'Москва', 'Standard', 349.93, 3, 116.64, '2024-01-22')
-    """)
+    customer_stats = df.groupby(['customer_id', 'name', 'city', 'loyalty_status']).agg({
+        'total_amount': ['sum', 'mean', 'count'],
+        'date': 'max'
+    }).round(2)
+
+    customer_stats.columns = ['total_revenue', 'avg_order_value', 'orders_count', 'last_order_date']
+    customer_stats = customer_stats.reset_index()
+
+    for _, row in customer_stats.iterrows():
+        client.execute("""
+            INSERT INTO sales_by_customer
+            (customer_id, customer_name, city, loyalty_status,
+             total_revenue, orders_count, avg_order_value, last_order_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, [
+            row['customer_id'], row['name'], row['city'], row['loyalty_status'],
+            row['total_revenue'], int(row['orders_count']), row['avg_order_value'],
+            row['last_order_date'].strftime('%Y-%m-%d')
+        ])
 
     result = client.execute("SELECT count() FROM sales_by_customer")
-    print(f"Loaded {result[0][0]} rows to sales_by_customer")
+    print(f"Built sales_by_customer: {result[0][0]} customers")
 
-    return "Mart sales_by_customer loaded"
+    return f"Sales by customer built: {len(customer_stats)} rows"
 
-def load_sales_by_product(**context):
+def build_sales_by_product(**context):
+    """Строим витрину продаж по продуктам"""
+    ti = context['task_instance']
+    data_json = ti.xcom_pull(key='postgres_data', task_ids='extract_from_postgres')
+    df = pd.read_json(data_json)
+
     client = Client(
         host='clickhouse',
         port=9000,
@@ -123,21 +175,36 @@ def load_sales_by_product(**context):
         database='analytics'
     )
 
-    client.execute("""
-        INSERT INTO sales_by_product VALUES
-        ('P101', 599.94, 6, 3, 99.99),
-        ('P102', 549.90, 9, 4, 61.10),
-        ('P103', 479.94, 6, 3, 79.99),
-        ('P104', 399.90, 9, 4, 44.43),
-        ('P105', 449.97, 3, 2, 149.99)
-    """)
+    product_stats = df.groupby('product_id').agg({
+        'total_amount': ['sum', 'count'],
+        'quantity': 'sum',
+        'unit_price': 'mean'
+    }).round(2)
+
+    product_stats.columns = ['total_revenue', 'orders_count', 'total_quantity', 'avg_price']
+    product_stats = product_stats.reset_index()
+
+    for _, row in product_stats.iterrows():
+        client.execute("""
+            INSERT INTO sales_by_product
+            (product_id, total_revenue, total_quantity, orders_count, avg_price)
+            VALUES (%s, %s, %s, %s, %s)
+        """, [
+            row['product_id'], row['total_revenue'], int(row['total_quantity']),
+            int(row['orders_count']), row['avg_price']
+        ])
 
     result = client.execute("SELECT count() FROM sales_by_product")
-    print(f"Loaded {result[0][0]} rows to sales_by_product")
+    print(f"Built sales_by_product: {result[0][0]} products")
 
-    return "Mart sales_by_product loaded"
+    return f"Sales by product built: {len(product_stats)} rows"
 
-def load_daily_sales(**context):
+def build_daily_sales(**context):
+    """Строим витрину дневных продаж"""
+    ti = context['task_instance']
+    data_json = ti.xcom_pull(key='postgres_data', task_ids='extract_from_postgres')
+    df = pd.read_json(data_json)
+
     client = Client(
         host='clickhouse',
         port=9000,
@@ -146,26 +213,35 @@ def load_daily_sales(**context):
         database='analytics'
     )
 
-    client.execute("""
-        INSERT INTO daily_sales VALUES
-        ('2024-01-15', 349.96, 2, 2, 174.98),
-        ('2024-01-16', 279.97, 2, 2, 139.99),
-        ('2024-01-17', 549.93, 2, 2, 274.97),
-        ('2024-01-18', 339.96, 2, 2, 169.98),
-        ('2024-01-19', 299.94, 2, 2, 149.97),
-        ('2024-01-20', 249.97, 2, 2, 124.99),
-        ('2024-01-21', 159.98, 1, 1, 159.98),
-        ('2024-01-22', 399.94, 2, 2, 199.97),
-        ('2024-01-23', 279.97, 2, 2, 139.99),
-        ('2024-01-24', 299.96, 2, 2, 149.98)
-    """)
+    daily_stats = df.groupby('date').agg({
+        'total_amount': ['sum', 'mean', 'count'],
+        'customer_id': 'nunique'
+    }).round(2)
+
+    daily_stats.columns = ['revenue', 'avg_order_value', 'orders_count', 'unique_customers']
+    daily_stats = daily_stats.reset_index()
+
+    for _, row in daily_stats.iterrows():
+        client.execute("""
+            INSERT INTO daily_sales
+            (date, revenue, orders_count, unique_customers, avg_order_value)
+            VALUES (%s, %s, %s, %s, %s)
+        """, [
+            row['date'].strftime('%Y-%m-%d'), row['revenue'], int(row['orders_count']),
+            int(row['unique_customers']), row['avg_order_value']
+        ])
 
     result = client.execute("SELECT count() FROM daily_sales")
-    print(f"Loaded {result[0][0]} rows to daily_sales")
+    print(f"Built daily_sales: {result[0][0]} days")
 
-    return "Mart daily_sales loaded"
+    return f"Daily sales built: {len(daily_stats)} rows"
 
-def load_kpi_metrics(**context):
+def build_kpi_metrics(**context):
+    """Строим KPI метрики"""
+    ti = context['task_instance']
+    data_json = ti.xcom_pull(key='postgres_data', task_ids='extract_from_postgres')
+    df = pd.read_json(data_json)
+
     client = Client(
         host='clickhouse',
         port=9000,
@@ -174,84 +250,51 @@ def load_kpi_metrics(**context):
         database='analytics'
     )
 
-    client.execute("""
-        INSERT INTO kpi_metrics (metric_name, metric_value) VALUES
-        ('total_revenue', 2469.62),
-        ('total_orders', 20),
-        ('avg_order_value', 123.48),
-        ('unique_customers', 6),
-        ('repeat_customers', 4),
-        ('repeat_rate', 66.67),
-        ('credit_card_usage', 45.0),
-        ('avg_daily_revenue', 246.96)
-    """)
+    client.execute("TRUNCATE TABLE kpi_metrics;")
 
-    result = client.execute("SELECT count() FROM kpi_metrics")
-    print(f"Loaded {result[0][0]} KPI metrics")
+    metrics = {
+        'total_revenue': float(df['total_amount'].sum()),
+        'total_orders': len(df),
+        'avg_order_value': float(df['total_amount'].mean()),
+        'unique_customers': df['customer_id'].nunique(),
+        'repeat_customers': len(df[df.groupby('customer_id')['customer_id'].transform('count') > 1]['customer_id'].unique()),
+        'repeat_rate': round(len(df[df.groupby('customer_id')['customer_id'].transform('count') > 1]['customer_id'].unique()) / df['customer_id'].nunique() * 100, 2),
+        'credit_card_usage': round(len(df[df['payment_method'] == 'Credit Card']) / len(df) * 100, 2),
+        'avg_daily_revenue': float(df.groupby('date')['total_amount'].sum().mean()),
+        'total_quantity': int(df['quantity'].sum())
+    }
 
-    metrics = client.execute("SELECT * FROM kpi_metrics")
-    print("Current KPIs:")
-    for metric in metrics:
-        print(f"  {metric[0]}: {metric[1]}")
+    for name, value in metrics.items():
+        client.execute("""
+            INSERT INTO kpi_metrics (metric_name, metric_value)
+            VALUES (%s, %s)
+        """, [name, value])
 
-    return "KPI metrics loaded"
+    print("KPI Metrics:")
+    for name, value in metrics.items():
+        print(f"   {name}: {value}")
 
-def run_analytics_queries(**context):
-    client = Client(
-        host='clickhouse',
-        port=9000,
-        user='analytics_user',
-        password='analytics_pass',
-        database='analytics'
-    )
-
-    top_customers = client.execute("""
-        SELECT customer_name, total_revenue, orders_count
-        FROM sales_by_customer
-        ORDER BY total_revenue DESC
-        LIMIT 3
-    """)
-
-    print("Top 3 Customers:")
-    for customer in top_customers:
-        print(f"  {customer[0]}: ${customer[1]:.2f} ({customer[2]} orders)")
-
-    top_products = client.execute("""
-        SELECT product_id, total_revenue, total_quantity
-        FROM sales_by_product
-        ORDER BY total_revenue DESC
-        LIMIT 3
-    """)
-
-    print("Top 3 Products:")
-    for product in top_products:
-        print(f"  {product[0]}: ${product[1]:.2f} ({product[2]} units)")
-
-    daily_stats = client.execute("""
-        SELECT
-            max(date) as last_date,
-            sum(revenue) as total_revenue,
-            avg(avg_order_value) as avg_order
-        FROM daily_sales
-    """)
-
-    print(f"Daily Stats - Last Date: {daily_stats[0][0]}")
-    print(f"Total Revenue: ${daily_stats[0][1]:.2f}")
-    print(f"Avg Order: ${daily_stats[0][2]:.2f}")
-
-    return "Analytics queries completed"
+    return "KPI metrics built"
 
 def skip_analytics(**context):
-    print("No data available. Skipping analytics.")
+    print("No data available in PostgreSQL. Skipping analytics.")
     return "Analytics skipped"
 
 def final_notification(**context):
+    print("=" * 50)
     print("All analytics marts built successfully in ClickHouse!")
+    print("=" * 50)
     return "Analytics completed"
 
 task_check_data = BranchPythonOperator(
     task_id='check_data',
     python_callable=check_data_availability,
+    dag=dag2,
+)
+
+task_extract = PythonOperator(
+    task_id='extract_from_postgres',
+    python_callable=extract_from_postgres,
     dag=dag2,
 )
 
@@ -273,32 +316,26 @@ task_create_tables = PythonOperator(
 )
 
 task_load_customers = PythonOperator(
-    task_id='load_sales_by_customer',
-    python_callable=load_sales_by_customer,
+    task_id='build_sales_by_customer',
+    python_callable=build_sales_by_customer,
     dag=dag2,
 )
 
 task_load_products = PythonOperator(
-    task_id='load_sales_by_product',
-    python_callable=load_sales_by_product,
+    task_id='build_sales_by_product',
+    python_callable=build_sales_by_product,
     dag=dag2,
 )
 
 task_load_daily = PythonOperator(
-    task_id='load_daily_sales',
-    python_callable=load_daily_sales,
+    task_id='build_daily_sales',
+    python_callable=build_daily_sales,
     dag=dag2,
 )
 
 task_load_kpi = PythonOperator(
-    task_id='load_kpi_metrics',
-    python_callable=load_kpi_metrics,
-    dag=dag2,
-)
-
-task_analytics = PythonOperator(
-    task_id='run_analytics_queries',
-    python_callable=run_analytics_queries,
+    task_id='build_kpi_metrics',
+    python_callable=build_kpi_metrics,
     dag=dag2,
 )
 
@@ -310,5 +347,5 @@ task_finish = PythonOperator(
 )
 
 task_check_data >> [task_create_marts, task_skip]
-task_create_marts >> task_create_tables >> [task_load_customers, task_load_products, task_load_daily] >> task_load_kpi >> task_analytics >> task_finish
+task_create_marts >> task_extract >> task_create_tables >> [task_load_customers, task_load_products, task_load_daily] >> task_load_kpi >> task_finish
 task_skip >> task_finish

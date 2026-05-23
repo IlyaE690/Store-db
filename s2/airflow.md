@@ -3,7 +3,7 @@
 создаем dags dag1_etl_load.py и dag2_analytics.py
 
 
-В постгрес загружается через XCom в процессе работы dag1
+В постгрес загружается в процессе работы dag1
 
 структура объединенных данных: sale_id, date, customer_id, product_id, quantity, unit_price, total_amount, payment_method, name, city, loyalty_status, month, year
 
@@ -160,7 +160,7 @@ avg_price — средняя цена продажи
 
 Каждый запуск обрабатывает полный набор данных из CSV и JSON
 
-При повторном запуске данные перезаписываются
+Используется ON CONFLICT (sale_id) DO UPDATE — при повторном запуске данные обновляются, а не дублируются
 
 Результаты сохраняются в XCom с фиксированными ключами
 
